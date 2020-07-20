@@ -57,9 +57,6 @@ bool SomeFileOverlapsRange(const InternalKeyComparator& icmp,
                            const Slice* smallest_user_key,
                            const Slice* largest_user_key);
 
-  
-  
-//水电费水电费是  
 class Version {
  public:
   // Lookup the value for key.  If found, store it in *val and
@@ -138,6 +135,8 @@ class Version {
 
   ~Version();
 
+  //对某一level创建二层迭代器进行访问，
+  //访问过程是：先定位到这一层的第几个文件，然后再访问这个SSTable文件。
   Iterator* NewConcatenatingIterator(const ReadOptions&, int level) const;
 
   // Call func(arg, level, f) for every file that overlaps user_key in
@@ -145,21 +144,31 @@ class Version {
   // false, makes no more calls.
   //
   // REQUIRES: user portion of internal_key == user_key.
+  //1、查找每一层与user_key有重叠的文件；
+  //2、找到之后执行*func函数。
   void ForEachOverlapping(Slice user_key, Slice internal_key, void* arg,
                           bool (*func)(void*, int, FileMetaData*));
 
+  //当前Version属于的VersionSet
   VersionSet* vset_;  // VersionSet to which this Version belongs
+  //当前Version的前后
+  //链表指向
   Version* next_;     // Next version in linked list
   Version* prev_;     // Previous version in linked list
+  //当前Version被引用几次
   int refs_;          // Number of live refs to this version
 
+  //每一层的文件集合
   // List of files per level
   std::vector<FileMetaData*> files_[config::kNumLevels];
 
+  //通过Seek判断得到的需要Compact的文件以及
+  //对应文件的所在层次
   // Next file to compact based on seek stats.
   FileMetaData* file_to_compact_;
   int file_to_compact_level_;
 
+  //需要被Compact的level以及其compaction_score_
   // Level that should be compacted next and its compaction score.
   // Score < 1 means compaction is not strictly needed.  These fields
   // are initialized by Finalize().
