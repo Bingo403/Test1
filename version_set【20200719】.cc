@@ -32,6 +32,7 @@ static int64_t MaxGrandParentOverlapBytes(const Options* options) {
   return 10 * TargetFileSize(options);
 }
 
+//å‡†å¤‡è¿›è¡Œå‹ç¼©çš„æ‰€æœ‰æ–‡ä»¶çš„æœ€å¤§å¤§å°
 // Maximum number of bytes in all compacted files.  We avoid expanding
 // the lower level file set of a compaction if it would make the
 // total compaction cover more than this many bytes.
@@ -39,6 +40,13 @@ static int64_t ExpandedCompactionByteSizeLimit(const Options* options) {
   return 25 * TargetFileSize(options);
 }
 
+//1ã€æ¯ä¸€å±‚è¢«è§¦å‘å‹ç¼©çš„æ–‡ä»¶æœ€å¤§å¤§å°ï¼Œè¿™é‡Œé™¤level0å±‚ä»¥å¤–ï¼Œ
+//   å› ä¸ºlevel0å±‚æ˜¯é€šè¿‡å•ç‹¬çš„æ–‡ä»¶ä¸ªæ•°è®¾ç½®å»è§¦å‘çš„ã€‚
+//2ã€level1:10MB
+//   level2:100MB
+//   level3:1000MB
+//   level4:10000MB
+//   ç›´åˆ°level6å±‚
 static double MaxBytesForLevel(const Options* options, int level) {
   // Note: the result for level zero is not really used since we set
   // the level-0 compaction threshold based on number of files.
@@ -52,11 +60,13 @@ static double MaxBytesForLevel(const Options* options, int level) {
   return result;
 }
 
+//æ¯å±‚ç”Ÿæˆçš„sstableæ–‡ä»¶çš„å¤§å°ï¼Œå¤§å°ç”¨æˆ·å¯è®¾ç½®ã€‚
 static uint64_t MaxFileSizeForLevel(const Options* options, int level) {
   // We could vary per level to reduce number of files?
   return TargetFileSize(options);
 }
 
+//è®¡ç®—æ‰€æœ‰æ–‡ä»¶å¤§å°
 static int64_t TotalFileSize(const std::vector<FileMetaData*>& files) {
   int64_t sum = 0;
   for (size_t i = 0; i < files.size(); i++) {
@@ -85,8 +95,8 @@ Version::~Version() {
   }
 }
 
-//Ê¹ÓÃ¶ş·Ö·¨ÔÚlevel·Ç0²ã½øĞĞ²éÕÒÄ³¸ökeyËùÔÚµÄÎÄ¼ş·¶Î§¡£
-//ÕâÊÇÒòÎªfilesÄÚ²¿µÄÎÄ¼şÊÇÒÑ¾­°´keyÅÅºÃĞòµÄÁË¡£
+//ä½¿ç”¨äºŒåˆ†æ³•åœ¨levelé0å±‚è¿›è¡ŒæŸ¥æ‰¾æŸä¸ªkeyæ‰€åœ¨çš„æ–‡ä»¶èŒƒå›´ã€‚
+//è¿™æ˜¯å› ä¸ºfileså†…éƒ¨çš„æ–‡ä»¶æ˜¯å·²ç»æŒ‰keyæ’å¥½åºçš„äº†ã€‚
 int FindFile(const InternalKeyComparator& icmp,
              const std::vector<FileMetaData*>& files, const Slice& key) {
   uint32_t left = 0;
@@ -194,7 +204,7 @@ class Version::LevelFileNumIterator : public Iterator {
     return (*flist_)[index_]->largest.Encode();
   }
 
-  //ValueÊÇµ±Ç°index_¶ÔÓ¦µÄÎÄ¼ş±àºÅ+ÎÄ¼ş´óĞ¡
+  //Valueæ˜¯å½“å‰index_å¯¹åº”çš„æ–‡ä»¶ç¼–å·+æ–‡ä»¶å¤§å°
   Slice value() const override {
     assert(Valid());
     EncodeFixed64(value_buf_, (*flist_)[index_]->number);
@@ -224,6 +234,8 @@ static Iterator* GetFileIterator(void* arg, const ReadOptions& options,
   }
 }
 
+//å¯¹æŸä¸€levelåˆ›å»ºäºŒå±‚è¿­ä»£å™¨è¿›è¡Œè®¿é—®ï¼Œ
+//è®¿é—®è¿‡ç¨‹æ˜¯ï¼šå…ˆå®šä½åˆ°è¿™ä¸€å±‚çš„ç¬¬å‡ ä¸ªæ–‡ä»¶ï¼Œç„¶åå†è®¿é—®è¿™ä¸ªSSTableæ–‡ä»¶ã€‚
 Iterator* Version::NewConcatenatingIterator(const ReadOptions& options,
                                             int level) const {
   return NewTwoLevelIterator(
@@ -231,6 +243,8 @@ Iterator* Version::NewConcatenatingIterator(const ReadOptions& options,
       vset_->table_cache_, options);
 }
 
+//æŠŠVersionä¸­çš„æ¯å±‚æ–‡ä»¶éƒ½åˆ›å»ºå¯¹åº”çš„è¿­ä»£å™¨æ·»åŠ åˆ°
+//itersä¸­ã€‚
 void Version::AddIterators(const ReadOptions& options,
                            std::vector<Iterator*>* iters) {
   // Merge all level zero files together since they may overlap
@@ -283,6 +297,8 @@ static bool NewestFirst(FileMetaData* a, FileMetaData* b) {
   return a->number > b->number;
 }
 
+//1ã€æŸ¥æ‰¾æ¯ä¸€å±‚ä¸user_keyæœ‰é‡å çš„æ–‡ä»¶ï¼›
+//2ã€æ‰¾åˆ°ä¹‹åæ‰§è¡Œ*funcå‡½æ•°ã€‚
 void Version::ForEachOverlapping(Slice user_key, Slice internal_key, void* arg,
                                  bool (*func)(void*, int, FileMetaData*)) {
   const Comparator* ucmp = vset_->icmp_.user_comparator();
@@ -499,7 +515,7 @@ int Version::PickLevelForMemTableOutput(const Slice& smallest_user_key,
   return level;
 }
 
-//½«level²ãÓĞÖØµşµÄfile¶¼Ìí¼Óµ½inputsÖĞ±£´æ¡£
+//å°†levelå±‚æœ‰é‡å çš„fileéƒ½æ·»åŠ åˆ°inputsä¸­ä¿å­˜ã€‚
 // Store in "*inputs" all files in "level" that overlap [begin,end]
 void Version::GetOverlappingInputs(int level, const InternalKey* begin,
                                    const InternalKey* end,
@@ -1205,7 +1221,7 @@ void VersionSet::GetRange(const std::vector<FileMetaData*>& inputs,
   }
 }
 
-//»ñÈ¡Á½¸öÎÄ¼ş¼¯ºÏ·¶Î§µÄ×î´ókeyºÍ×îĞ¡key¡£
+//è·å–ä¸¤ä¸ªæ–‡ä»¶é›†åˆèŒƒå›´çš„æœ€å¤§keyå’Œæœ€å°keyã€‚
 // Stores the minimal range that covers all entries in inputs1 and inputs2
 // in *smallest, *largest.
 // REQUIRES: inputs is not empty
@@ -1217,7 +1233,7 @@ void VersionSet::GetRange2(const std::vector<FileMetaData*>& inputs1,
   GetRange(all, smallest, largest);
 }
 
-//´´½¨·ÃÎÊCompactionµÄµü´úÆ÷
+//åˆ›å»ºè®¿é—®Compactionçš„è¿­ä»£å™¨
 Iterator* VersionSet::MakeInputIterator(Compaction* c) {
   ReadOptions options;
   options.verify_checksums = options_->paranoid_checks;
@@ -1238,8 +1254,8 @@ Iterator* VersionSet::MakeInputIterator(Compaction* c) {
                                                   files[i]->file_size);
         }
       } else {
-        //¶ş²ãµü´úÆ÷ÄÚÇ¶¶ş²ãµü´úÆ÷£¬Ò»²ãÎªinputs_[which]£¬¶ş²ãÊÇ¸ù¾İÒ»²ã
-        //ÕÒµ½µÄfile£¬ÔÙ´ÎÊ¹ÓÃtable_cache¶ÔÓ¦µÄ¶ş²ãÖ¸ÕëÀ´ÕÒÖµ
+        //äºŒå±‚è¿­ä»£å™¨å†…åµŒäºŒå±‚è¿­ä»£å™¨ï¼Œä¸€å±‚ä¸ºinputs_[which]ï¼ŒäºŒå±‚æ˜¯æ ¹æ®ä¸€å±‚
+        //æ‰¾åˆ°çš„fileï¼Œå†æ¬¡ä½¿ç”¨table_cacheå¯¹åº”çš„äºŒå±‚æŒ‡é’ˆæ¥æ‰¾å€¼
         // Create concatenating iterator for the files from this level
         list[num++] = NewTwoLevelIterator(
             new Version::LevelFileNumIterator(icmp_, &c->inputs_[which]),
@@ -1248,22 +1264,22 @@ Iterator* VersionSet::MakeInputIterator(Compaction* c) {
     }
   }
   assert(num <= space);
-  //´´½¨ÓÃÓÚºÏ²¢µÄµü´úÆ÷£¬ÄÚ²¿½øĞĞÁËÒ»Ğ©·â×°
+  //åˆ›å»ºç”¨äºåˆå¹¶çš„è¿­ä»£å™¨ï¼Œå†…éƒ¨è¿›è¡Œäº†ä¸€äº›å°è£…
   Iterator* result = NewMergingIterator(&icmp_, list, num);
   delete[] list;
   return result;
 }
 
-//Ñ¡È¡Ò»²ãĞèÒªcompactµÄÎÄ¼şÁĞ±í£¬¼°Ïà¹ØµÄÏÂ²ãÎÄ¼şÁĞ±í£¬
-//¼ÇÂ¼ÔÚCompaction*·µ»Ø
+//é€‰å–ä¸€å±‚éœ€è¦compactçš„æ–‡ä»¶åˆ—è¡¨ï¼ŒåŠç›¸å…³çš„ä¸‹å±‚æ–‡ä»¶åˆ—è¡¨ï¼Œ
+//è®°å½•åœ¨Compaction*è¿”å›
 Compaction* VersionSet::PickCompaction() {
   Compaction* c;
   int level;
 
   // We prefer compactions triggered by too much data in a level over
   // the compactions triggered by seeks.
-  const bool size_compaction = (current_->compaction_score_ >= 1); //ÎÄ¼şÊı¹ı¶à
-  const bool seek_compaction = (current_->file_to_compact_ != nullptr); //seekÁË¶à´ÎÎÄ¼şµ«ÊÇÃ»ÓĞ²éµ½£¬¼ÇÂ¼µ½file_to_compact_
+  const bool size_compaction = (current_->compaction_score_ >= 1); //æ–‡ä»¶æ•°è¿‡å¤š
+  const bool seek_compaction = (current_->file_to_compact_ != nullptr); //seekäº†å¤šæ¬¡æ–‡ä»¶ä½†æ˜¯æ²¡æœ‰æŸ¥åˆ°ï¼Œè®°å½•åˆ°file_to_compact_
   if (size_compaction) {
     level = current_->compaction_level_;
     assert(level >= 0);
@@ -1305,7 +1321,7 @@ Compaction* VersionSet::PickCompaction() {
     assert(!c->inputs_[0].empty());
   }
 
-  //µ½´Ë´¦,inputs_[0]ÖĞÖ»ÓĞÒ»¸öÎÄ¼ş
+  //åˆ°æ­¤å¤„,inputs_[0]ä¸­åªæœ‰ä¸€ä¸ªæ–‡ä»¶
 
   SetupOtherInputs(c);
 
@@ -1330,7 +1346,7 @@ bool FindLargestKey(const InternalKeyComparator& icmp,
   return true;
 }
 
-//ÔÚb2ÖĞÕÒµ½key×îĞ¡µÄÎÄ¼ş£¬Õâ¸öÎÄ¼şÊÇl2 > u1£¬µ«ÊÇuser_key(l2) = user_key(u1)
+//åœ¨b2ä¸­æ‰¾åˆ°keyæœ€å°çš„æ–‡ä»¶ï¼Œè¿™ä¸ªæ–‡ä»¶æ˜¯l2 > u1ï¼Œä½†æ˜¯user_key(l2) = user_key(u1)
 // Finds minimum file b2=(l2, u2) in level file for which l2 > u1 and
 // user_key(l2) = user_key(u1)
 FileMetaData* FindSmallestBoundaryFile(
@@ -1367,12 +1383,12 @@ FileMetaData* FindSmallestBoundaryFile(
 // parameters:
 //   in     level_files:      List of files to search for boundary files.
 //   in/out compaction_files: List of files to extend by adding boundary files.
-//<! µ±compaction_files·¶Î§ b1=(l1, u1), level_files·¶Î§ b2=(l2, u2), ²¢ÇÒ
-//   user_key(u1) = user_key(l2)£¬b2µÄÊı¾İÊÇ±È½Ï¾ÉµÄÊı¾İ¡£b1·¶Î§µÄÎÄ¼şÓÉÓÚÑ¹Ëõ
-//   »áÒÆ¶¯µ½level + 1£¬b2·¶Î§µÄÎÄ¼şÈÔÔÚlevel²ã¡£Êı¾İ²éÑ¯¶¼ÊÇ´Óµ×²ãµ½¸ß²ãµÄ£¬
-//   Ò²¾ÍÊÇËµÏÈËÑË÷level²ã,ÔÚËÑË÷level + 1 ²ã¡£Èç¹û²»½«user_key(u1) = user_key(l2)
-//   µÄl2ÎÄ¼şÒ²Ò»Æğ·Åµ½Ñ¹ËõÊı¾İÖĞ£¬ÄÇÏÂ´ÎËÑË÷user_key(u1)Ê±»áÖ±½ÓÔÚlevel²ãËÑË÷µ½¾ÉµÄ
-//   Êı¾İuser_key(l2)²¢·µ»Ø, Òò´ËĞèÒª½«ÊÜÓ°ÏìµÄÎÄ¼şÈ«²¿¼Óµ½compaction_filesÖĞ½øĞĞÑ¹Ëõ¡£
+//<! å½“compaction_filesèŒƒå›´ b1=(l1, u1), level_filesèŒƒå›´ b2=(l2, u2), å¹¶ä¸”
+//   user_key(u1) = user_key(l2)ï¼Œb2çš„æ•°æ®æ˜¯æ¯”è¾ƒæ—§çš„æ•°æ®ã€‚b1èŒƒå›´çš„æ–‡ä»¶ç”±äºå‹ç¼©
+//   ä¼šç§»åŠ¨åˆ°level + 1ï¼Œb2èŒƒå›´çš„æ–‡ä»¶ä»åœ¨levelå±‚ã€‚æ•°æ®æŸ¥è¯¢éƒ½æ˜¯ä»åº•å±‚åˆ°é«˜å±‚çš„ï¼Œ
+//   ä¹Ÿå°±æ˜¯è¯´å…ˆæœç´¢levelå±‚,åœ¨æœç´¢level + 1 å±‚ã€‚å¦‚æœä¸å°†user_key(u1) = user_key(l2)
+//   çš„l2æ–‡ä»¶ä¹Ÿä¸€èµ·æ”¾åˆ°å‹ç¼©æ•°æ®ä¸­ï¼Œé‚£ä¸‹æ¬¡æœç´¢user_key(u1)æ—¶ä¼šç›´æ¥åœ¨levelå±‚æœç´¢åˆ°æ—§çš„
+//   æ•°æ®user_key(l2)å¹¶è¿”å›, å› æ­¤éœ€è¦å°†å—å½±å“çš„æ–‡ä»¶å…¨éƒ¨åŠ åˆ°compaction_filesä¸­è¿›è¡Œå‹ç¼©ã€‚
 //>
 
 void AddBoundaryInputs(const InternalKeyComparator& icmp,
@@ -1410,8 +1426,8 @@ void VersionSet::SetupOtherInputs(Compaction* c) {
   current_->GetOverlappingInputs(level + 1, &smallest, &largest,
                                  &c->inputs_[1]);
 
-  //»ñÈ¡inputs_[0]ºÍinputs_[1]Á½²ãÖĞ
-  //ËùÓĞkeyµÄ×î´óÖµºÍ×îĞ¡Öµ¡£
+  //è·å–inputs_[0]å’Œinputs_[1]ä¸¤å±‚ä¸­
+  //æ‰€æœ‰keyçš„æœ€å¤§å€¼å’Œæœ€å°å€¼ã€‚
   // Get entire range covered by compaction
   InternalKey all_start, all_limit;
   GetRange2(c->inputs_[0], c->inputs_[1], &all_start, &all_limit);
@@ -1419,21 +1435,21 @@ void VersionSet::SetupOtherInputs(Compaction* c) {
   // See if we can grow the number of inputs in "level" without
   // changing the number of "level+1" files we pick up.
 
-  //Ñ¹Ëõ»ù±¾Ë¼ÏëÊÇ£ºËùÓĞÖØµşµÄlevel + 1²ãÎÄ¼ş¶¼Òª²ÎÓëcompact£¬µÃµ½ÕâĞ©ÎÄ¼şºó
-  //·´¹ıÀ´¿´ÏÂ£¬Èç¹ûÔÚ²»Ôö¼Ólevel + 1 ²ãÎÄ¼şµÄÇ°ÌáÏÂ£¬¿´ÄÜ·ñÔö¼Ólevel²ãµÄÎÄ¼ş¡£
-  //Ò²¾ÍÊÇÔÚ²»Ôö¼Ó level + 1 ²ãÎÄ¼ş£¬Í¬Ê±²»»áµ¼ÖÂ compact µÄÎÄ¼ş¹ı´óµÄÇ°ÌáÏÂ£¬
-  //¾¡Á¿Ôö¼Ó level ²ãµÄÎÄ¼şÊı¡£
-  //´¦ÀíÁ÷³ÌÈçÏÂ£º
-  //1¡¢ÀûÓÃinputs_[0]ºÍinputs_[1]Á½¸ö·¶Î§ÄÚkeyµÄ×î´óÖµall_limitºÍ×îĞ¡Öµall_start
-  //   È¥level²ã²éÑ¯³öÓĞÖØµşµÄÎÄ¼ş£¬²¢¼ÓÈëµ½expanded0ÖĞ¡£
-  //2¡¢µ÷ÓÃAddBoundaryInputs()ÕÒ³ö±ß½çÎÄ¼ş²¢Ò»Æğcompact¡£
-  //3¡¢Èç¹ûĞÂ²éÑ¯³öµÄÎÄ¼ş¸öÊıexpanded0.size() > input_[0].size(),
-  //   ÇÒinputs1_[1]²ãµÄÎÄ¼ş´óĞ¡inputs1_size + expanded0_size < ExpandedCompactionByteSizeLimit()
-  //   (Ä¿µÄÊÇÑ¹ËõÎÄ¼şÊı¾İ´óĞ¡²»ÄÜÌ«´ó¶øµ¼ÖÂÑ¹ËõÑ¹Á¦¡£)
-  //4¡¢Èç¹ûÁ÷³Ì3µÄÌõ¼şÂú×ã£¬ÇÒ¸ù¾İexpanded0»ñÈ¡µ½µÄĞÂµÄkeyÖµ·¶Î§new_startºÍnew_limit
-  //   È¥level + 1 ²ãÈ¥²éÑ¯ÖØµşµÄÎÄ¼ş¡£
-  //5¡¢Èô4²éÑ¯³öµÄÖØµşÎÄ¼şºÍÖ®Ç°inputs_[1]²ãµÄÖØµşÎÄ¼ş¸öÊıÒ»Ñù¡£Ò²¾ÍÊÇËµÔÚ
-  //   level+1²ãÎÄ¼ş¸öÊıÎ´±äÇ°ÌáÏÂ£¬¾¡Á¿Ôö¼Ólevel²ãÎÄ¼ş¸öÊı½øĞĞÑ¹Ëõ¡£
+  //å‹ç¼©åŸºæœ¬æ€æƒ³æ˜¯ï¼šæ‰€æœ‰é‡å çš„level + 1å±‚æ–‡ä»¶éƒ½è¦å‚ä¸compactï¼Œå¾—åˆ°è¿™äº›æ–‡ä»¶å
+  //åè¿‡æ¥çœ‹ä¸‹ï¼Œå¦‚æœåœ¨ä¸å¢åŠ level + 1 å±‚æ–‡ä»¶çš„å‰æä¸‹ï¼Œçœ‹èƒ½å¦å¢åŠ levelå±‚çš„æ–‡ä»¶ã€‚
+  //ä¹Ÿå°±æ˜¯åœ¨ä¸å¢åŠ  level + 1 å±‚æ–‡ä»¶ï¼ŒåŒæ—¶ä¸ä¼šå¯¼è‡´ compact çš„æ–‡ä»¶è¿‡å¤§çš„å‰æä¸‹ï¼Œ
+  //å°½é‡å¢åŠ  level å±‚çš„æ–‡ä»¶æ•°ã€‚
+  //å¤„ç†æµç¨‹å¦‚ä¸‹ï¼š
+  //1ã€åˆ©ç”¨inputs_[0]å’Œinputs_[1]ä¸¤ä¸ªèŒƒå›´å†…keyçš„æœ€å¤§å€¼all_limitå’Œæœ€å°å€¼all_start
+  //   å»levelå±‚æŸ¥è¯¢å‡ºæœ‰é‡å çš„æ–‡ä»¶ï¼Œå¹¶åŠ å…¥åˆ°expanded0ä¸­ã€‚
+  //2ã€è°ƒç”¨AddBoundaryInputs()æ‰¾å‡ºè¾¹ç•Œæ–‡ä»¶å¹¶ä¸€èµ·compactã€‚
+  //3ã€å¦‚æœæ–°æŸ¥è¯¢å‡ºçš„æ–‡ä»¶ä¸ªæ•°expanded0.size() > input_[0].size(),
+  //   ä¸”inputs1_[1]å±‚çš„æ–‡ä»¶å¤§å°inputs1_size + expanded0_size < ExpandedCompactionByteSizeLimit()
+  //   (ç›®çš„æ˜¯å‹ç¼©æ–‡ä»¶æ•°æ®å¤§å°ä¸èƒ½å¤ªå¤§è€Œå¯¼è‡´å‹ç¼©å‹åŠ›ã€‚)
+  //4ã€å¦‚æœæµç¨‹3çš„æ¡ä»¶æ»¡è¶³ï¼Œä¸”æ ¹æ®expanded0è·å–åˆ°çš„æ–°çš„keyå€¼èŒƒå›´new_startå’Œnew_limit
+  //   å»level + 1 å±‚å»æŸ¥è¯¢é‡å çš„æ–‡ä»¶ã€‚
+  //5ã€è‹¥4æŸ¥è¯¢å‡ºçš„é‡å æ–‡ä»¶å’Œä¹‹å‰inputs_[1]å±‚çš„é‡å æ–‡ä»¶ä¸ªæ•°ä¸€æ ·ã€‚ä¹Ÿå°±æ˜¯è¯´åœ¨
+  //   level+1å±‚æ–‡ä»¶ä¸ªæ•°æœªå˜å‰æä¸‹ï¼Œå°½é‡å¢åŠ levelå±‚æ–‡ä»¶ä¸ªæ•°è¿›è¡Œå‹ç¼©ã€‚
 
   if (!c->inputs_[1].empty()) {
     std::vector<FileMetaData*> expanded0;
@@ -1465,9 +1481,9 @@ void VersionSet::SetupOtherInputs(Compaction* c) {
     }
   }
 
-  // »ñÈ¡³ölevel+2²ãÓëÑ¹ËõºóµÄlevel+1²ãÓĞÖØµşµÄÎÄ¼ş·ÅÈëµ½grandparents_,
-  // ×÷ÓÃ¾ÍÊÇµ±ºÏ²¢level+1Óëlevel+2Ê±£¬¸ù¾İgrandparents_ÖĞµÄ¼ÇÂ¼¿É½øĞĞÌáÇ°½áÊø£¬
-  // ²»ÖÁÓÚºÏ²¢Ñ¹Á¦Ì«´ó¡££¨Õâ¸ö×÷ÓÃĞè´ıÈ·¶¨ HQB£©
+  // è·å–å‡ºlevel+2å±‚ä¸å‹ç¼©åçš„level+1å±‚æœ‰é‡å çš„æ–‡ä»¶æ”¾å…¥åˆ°grandparents_,
+  // ä½œç”¨å°±æ˜¯å½“åˆå¹¶level+1ä¸level+2æ—¶ï¼Œæ ¹æ®grandparents_ä¸­çš„è®°å½•å¯è¿›è¡Œæå‰ç»“æŸï¼Œ
+  // ä¸è‡³äºåˆå¹¶å‹åŠ›å¤ªå¤§ã€‚ï¼ˆè¿™ä¸ªä½œç”¨éœ€å¾…ç¡®å®š HQBï¼‰
   // Compute the set of grandparent files that overlap this compaction
   // (parent == level+1; grandparent == level+2)
   if (level + 2 < config::kNumLevels) {
@@ -1483,7 +1499,7 @@ void VersionSet::SetupOtherInputs(Compaction* c) {
   c->edit_.SetCompactPointer(level, largest);
 }
 
-//ÔÚÖ¸¶¨²ãlevelÖĞ£¬¸ù¾İÖ¸¶¨µÄ·¶Î§(begin,end)£¬ÕÒµ½´ıÑ¹ËõÎÄ¼ş²¢·µ»ØÒ»¸öÑ¹ËõÊµÌå¡£
+//åœ¨æŒ‡å®šå±‚levelä¸­ï¼Œæ ¹æ®æŒ‡å®šçš„èŒƒå›´(begin,end)ï¼Œæ‰¾åˆ°å¾…å‹ç¼©æ–‡ä»¶å¹¶è¿”å›ä¸€ä¸ªå‹ç¼©å®ä½“ã€‚
 Compaction* VersionSet::CompactRange(int level, const InternalKey* begin,
                                      const InternalKey* end) {
   std::vector<FileMetaData*> inputs;
@@ -1496,12 +1512,12 @@ Compaction* VersionSet::CompactRange(int level, const InternalKey* begin,
   // But we cannot do this for level-0 since level-0 files can overlap
   // and we must not pick one file and drop another older file if the
   // two files overlap.
-  //1¡¢¶ÔÓÚ´óÓÚ0²ãµÄlevel£¬ÓÉÓÚrange·¶Î§¹ı´óµ¼ÖÂÑ¹ËõÊı¾İÌ«¶à£¬
-  //   ËùÒÔÕâÀï½øĞĞÁË´óĞ¡¿ØÖÆ£¬µ±Ò»²ãÖĞµÄÇ°¼¸¸öÎÄ¼ş´óĞ¡ÒÑ³¬¹ı
-  //   ãĞÖµ£¬ÔòÔÚ´Ë¸öÊıÎÄ¼ş»ù´¡ÉÏÔÙ¶à¼ÓÒ»¸öÎÄ¼ş£¬Ê£ÓàºóÃæµÄÎÄ¼ş
-  //   Ö±½Ó¶ªÆú²»½øĞĞÑ¹Ëõ¡£
-  //2¡¢¶ÔÓÚlevel0²ãµÄÎÄ¼şÔò²»ÊÜÓÃ£¬ÒòÎªÎÄ¼şÖ±½Ó¿ÉÖØµşµÄ£¬²»ÄÜÑ¹ËõÒ»²¿·Ö£¬
-  //   ÁíÍâÖØµşµÄ²¿·Ö²»Ñ¹Ëõ£¬ÕâÑù»áÓĞÎÊÌâµÄ¡£ËùÒÔÖ»ÄÜÈ«²¿Ñ¹Ëõ¡£
+  //1ã€å¯¹äºå¤§äº0å±‚çš„levelï¼Œç”±äºrangeèŒƒå›´è¿‡å¤§å¯¼è‡´å‹ç¼©æ•°æ®å¤ªå¤šï¼Œ
+  //   æ‰€ä»¥è¿™é‡Œè¿›è¡Œäº†å¤§å°æ§åˆ¶ï¼Œå½“ä¸€å±‚ä¸­çš„å‰å‡ ä¸ªæ–‡ä»¶å¤§å°å·²è¶…è¿‡
+  //   é˜ˆå€¼ï¼Œåˆ™åœ¨æ­¤ä¸ªæ•°æ–‡ä»¶åŸºç¡€ä¸Šå†å¤šåŠ ä¸€ä¸ªæ–‡ä»¶ï¼Œå‰©ä½™åé¢çš„æ–‡ä»¶
+  //   ç›´æ¥ä¸¢å¼ƒä¸è¿›è¡Œå‹ç¼©ã€‚
+  //2ã€å¯¹äºlevel0å±‚çš„æ–‡ä»¶åˆ™ä¸å—ç”¨ï¼Œå› ä¸ºæ–‡ä»¶ç›´æ¥å¯é‡å çš„ï¼Œä¸èƒ½å‹ç¼©ä¸€éƒ¨åˆ†ï¼Œ
+  //   å¦å¤–é‡å çš„éƒ¨åˆ†ä¸å‹ç¼©ï¼Œè¿™æ ·ä¼šæœ‰é—®é¢˜çš„ã€‚æ‰€ä»¥åªèƒ½å…¨éƒ¨å‹ç¼©ã€‚
   if (level > 0) {
     const uint64_t limit = MaxFileSizeForLevel(options_, level);
     uint64_t total = 0;
@@ -1541,13 +1557,13 @@ Compaction::~Compaction() {
   }
 }
 
-//Í¨¹ı·½·¨IsTrivialMove()À´ÅĞ¶ÏÊÇ²»ÊÇ¿ÉÒÔ¼òµ¥µÄÒÆ¶¯ÎÄ¼şµ½ÏÂÒ»²ã
-//À´´ïµ½ºÏ²¢ÎÄ¼şµÄĞ§¹û¡£µ«ÊÇÓÖÒª±ÜÃâÒò½«ÎÄ¼şÒÆ¶¯µ½ÏÂÒ»²ãµ¼ÖÂÓë
-//ÏÂÏÂÒ»²ã¼´grandparent²ãÓĞÌ«¶àµÄÖØµşÊı¾İ½ø¶øµ¼ÖÂcompactÏÂÒ»²ãÊ±
-//Ñ¹Á¦Ì«´ó¡£
-//ÅĞ¶ÏÊÇ·ñ¿ÉĞĞµÄ·½·¨ÈçÏÂ:
-//1¡¢inputs_[0]²ãÖ»ÓĞÒ»¸öÎÄ¼ş¡¢inputs_[1]²ãÃ»ÎÄ¼ş¡£
-//2¡¢grandparents²ã×ÜµÄÎÄ¼ş´óĞ¡Îª³¬¹ıãĞÖµMaxGrandParentOverlapBytes()¡£
+//é€šè¿‡æ–¹æ³•IsTrivialMove()æ¥åˆ¤æ–­æ˜¯ä¸æ˜¯å¯ä»¥ç®€å•çš„ç§»åŠ¨æ–‡ä»¶åˆ°ä¸‹ä¸€å±‚
+//æ¥è¾¾åˆ°åˆå¹¶æ–‡ä»¶çš„æ•ˆæœã€‚ä½†æ˜¯åˆè¦é¿å…å› å°†æ–‡ä»¶ç§»åŠ¨åˆ°ä¸‹ä¸€å±‚å¯¼è‡´ä¸
+//ä¸‹ä¸‹ä¸€å±‚å³grandparentå±‚æœ‰å¤ªå¤šçš„é‡å æ•°æ®è¿›è€Œå¯¼è‡´compactä¸‹ä¸€å±‚æ—¶
+//å‹åŠ›å¤ªå¤§ã€‚
+//åˆ¤æ–­æ˜¯å¦å¯è¡Œçš„æ–¹æ³•å¦‚ä¸‹:
+//1ã€inputs_[0]å±‚åªæœ‰ä¸€ä¸ªæ–‡ä»¶ã€inputs_[1]å±‚æ²¡æ–‡ä»¶ã€‚
+//2ã€grandparentså±‚æ€»çš„æ–‡ä»¶å¤§å°ä¸ºè¶…è¿‡é˜ˆå€¼MaxGrandParentOverlapBytes()ã€‚
 bool Compaction::IsTrivialMove() const {
   const VersionSet* vset = input_version_->vset_;
   // Avoid a move if there is lots of overlapping grandparent data.
@@ -1558,7 +1574,7 @@ bool Compaction::IsTrivialMove() const {
               MaxGrandParentOverlapBytes(vset->options_));
 }
 
-//½«inputs_[0]ºÍinputs_[1]ÖĞµÄÎÄ¼şÌí¼Óµ½VersionEditÖĞ½øĞĞÉ¾³ı
+//å°†inputs_[0]å’Œinputs_[1]ä¸­çš„æ–‡ä»¶æ·»åŠ åˆ°VersionEditä¸­è¿›è¡Œåˆ é™¤
 void Compaction::AddInputDeletions(VersionEdit* edit) {
   for (int which = 0; which < 2; which++) {
     for (size_t i = 0; i < inputs_[which].size(); i++) {
@@ -1567,18 +1583,18 @@ void Compaction::AddInputDeletions(VersionEdit* edit) {
   }
 }
 
-//´Ëº¯Êı·½·¨Ö÷ÒªÓÃÔÚµ±compactÊ±£¬user_keyÊÇkTypeDeletion
-//Òª¼ì²éÆäÔÚlevel-n+1ÒÔÉÏ£¬Ò²¾ÍÊÇÕâÀïµÄ(level + 2)ÊÇ²»ÊÇ»¹´æÔÚ,
-//Èç¹û²»´æÔÚ£¬¿ÉÖ±½Ó½«´Ëuser_key¶ªÆúÁË¡£
-//ÕâÀïµÄÅĞ¶Ï·½·¨ÊÇÏßĞÔ±éÀú£¬È»ºóÅĞ¶Ïuser_keyÊÇ·ñÂäÔÚÄ³¸öÎÄ¼şµÄ·¶Î§À´
-//ÅĞ¶Ïµ±Ç°level-n+1ÒÔÉÏ²ãÊÇ·ñÓĞ´æÔÚ´Ëkey¡£
-//¡¾×¢Òâ¡¿£º
-//ÒòÎª³ı0²ãÒÔÍâµÄlevel¶¼ÊÇÓĞĞòµÄ£¬×÷ÕßÕâÀï¿¼ÂÇÁËÒª²»ÒªÍ¨¹ı
-//¶ş·ÖËÑË÷À´¼ì²âÅĞ¶Ï£¬ÆäÊµÈç¹ûÎÄ¼ş²»¶à£¬ÏßĞÔÅĞ¶ÏÒ²»¹ºÃ¡£
-//¡¾ÁíÍâ¡¿£º
-//level_ptrs_[]¼ÇÂ¼ÁË¶ÔÓÚµÄlevel²ãÉÏÒ»´Î±È½Ï½áÊøºóµÄsstableÎÄ¼şÏÂ±ê¡£
-//ÒòÎªcompactÊ±£¬keyµÄ±éÀúÊÇË³ĞòµÄ£¬ËùÒÔÍ¬Ò»¸öcompact¹ı³ÌÖĞ£¬µ±ĞèÒª
-//ÔÙ´ÎÅĞ¶Ïuser_keyÊÇ·ñIsBaseLevelForKey()Ê±£¬Ö»Ğè´ÓÉÏ´Îlevel_ptrs_¼ÇÂ¼µÄÎ»ÖÃ¿ªÊ¼¼´¿É¡£
+//æ­¤å‡½æ•°æ–¹æ³•ä¸»è¦ç”¨åœ¨å½“compactæ—¶ï¼Œuser_keyæ˜¯kTypeDeletion
+//è¦æ£€æŸ¥å…¶åœ¨level-n+1ä»¥ä¸Šï¼Œä¹Ÿå°±æ˜¯è¿™é‡Œçš„(level + 2)æ˜¯ä¸æ˜¯è¿˜å­˜åœ¨,
+//å¦‚æœä¸å­˜åœ¨ï¼Œå¯ç›´æ¥å°†æ­¤user_keyä¸¢å¼ƒäº†ã€‚
+//è¿™é‡Œçš„åˆ¤æ–­æ–¹æ³•æ˜¯çº¿æ€§éå†ï¼Œç„¶ååˆ¤æ–­user_keyæ˜¯å¦è½åœ¨æŸä¸ªæ–‡ä»¶çš„èŒƒå›´æ¥
+//åˆ¤æ–­å½“å‰level-n+1ä»¥ä¸Šå±‚æ˜¯å¦æœ‰å­˜åœ¨æ­¤keyã€‚
+//ã€æ³¨æ„ã€‘ï¼š
+//å› ä¸ºé™¤0å±‚ä»¥å¤–çš„leveléƒ½æ˜¯æœ‰åºçš„ï¼Œä½œè€…è¿™é‡Œè€ƒè™‘äº†è¦ä¸è¦é€šè¿‡
+//äºŒåˆ†æœç´¢æ¥æ£€æµ‹åˆ¤æ–­ï¼Œå…¶å®å¦‚æœæ–‡ä»¶ä¸å¤šï¼Œçº¿æ€§åˆ¤æ–­ä¹Ÿè¿˜å¥½ã€‚
+//ã€å¦å¤–ã€‘ï¼š
+//level_ptrs_[]è®°å½•äº†å¯¹äºçš„levelå±‚ä¸Šä¸€æ¬¡æ¯”è¾ƒç»“æŸåçš„sstableæ–‡ä»¶ä¸‹æ ‡ã€‚
+//å› ä¸ºcompactæ—¶ï¼Œkeyçš„éå†æ˜¯é¡ºåºçš„ï¼Œæ‰€ä»¥åŒä¸€ä¸ªcompactè¿‡ç¨‹ä¸­ï¼Œå½“éœ€è¦
+//å†æ¬¡åˆ¤æ–­user_keyæ˜¯å¦IsBaseLevelForKey()æ—¶ï¼Œåªéœ€ä»ä¸Šæ¬¡level_ptrs_è®°å½•çš„ä½ç½®å¼€å§‹å³å¯ã€‚
 bool Compaction::IsBaseLevelForKey(const Slice& user_key) {
   // Maybe use binary search to find right entry instead of linear search?
   const Comparator* user_cmp = input_version_->vset_->icmp_.user_comparator();
@@ -1600,15 +1616,15 @@ bool Compaction::IsBaseLevelForKey(const Slice& user_key) {
   return true;
 }
 
-//´Ë·½·¨µÄ×÷ÓÃÊÇÅĞ¶ÏÔÚcompact¹ı³ÌÖĞinternal_keyÓëÏÂÏÂÒ»²ã£¬¼´grandparent²ã
-//overlapÊı¾İÁ¿ÊÇ·ñ¹ı´ó¡£Èô¹ı´ó»áµ¼ÖÂparentºÍgrandparent²ãºÏ²¢Ê±Ñ¹Á¦Ì«´ó£¬
-//ËùÒÔĞèÌáÇ°Í£Ö¹µ±Ç°µÄcompact¡£
-//º¯ÊıÁ÷³Ì¿´ÆğÀ´Ò²²»ÊÇÌ«¸´ÔÓ¡£Î¨Ò» Ò»µã¾ÍÊÇµÚÒ»´Î½øÀ´ÊÇseen_key_ÊÇfalse
-//²»»á½øĞĞoverlapped_bytes_µÄÀÛ¼Ó¡£
-//¡¾ÒÉ»ó¡¿£º 
-//ÕâÀïµÄÒÉ»óÊÇgrandparents_[]ÖĞµÄÊı¾İÓ¦¸ÃÊÇ°éËæÖĞµ÷ÓÃSetupOtherInputs()À´±ä»¯µÄ
-//Òª²»È»grandparent_index_»áÒ»Ö±++£¬×îÖÕ»á´óÓÚgrandparents_.size()£¬Õâ¸öĞè´Ó
-//ÕûÌåÉÏÈ¥¿´£¬È»ºóÈ·ÈÏ¡£
+//æ­¤æ–¹æ³•çš„ä½œç”¨æ˜¯åˆ¤æ–­åœ¨compactè¿‡ç¨‹ä¸­internal_keyä¸ä¸‹ä¸‹ä¸€å±‚ï¼Œå³grandparentå±‚
+//overlapæ•°æ®é‡æ˜¯å¦è¿‡å¤§ã€‚è‹¥è¿‡å¤§ä¼šå¯¼è‡´parentå’Œgrandparentå±‚åˆå¹¶æ—¶å‹åŠ›å¤ªå¤§ï¼Œ
+//æ‰€ä»¥éœ€æå‰åœæ­¢å½“å‰çš„compactã€‚
+//å‡½æ•°æµç¨‹çœ‹èµ·æ¥ä¹Ÿä¸æ˜¯å¤ªå¤æ‚ã€‚å”¯ä¸€ ä¸€ç‚¹å°±æ˜¯ç¬¬ä¸€æ¬¡è¿›æ¥æ˜¯seen_key_æ˜¯false
+//ä¸ä¼šè¿›è¡Œoverlapped_bytes_çš„ç´¯åŠ ã€‚
+//ã€ç–‘æƒ‘ã€‘ï¼š 
+//è¿™é‡Œçš„ç–‘æƒ‘æ˜¯grandparents_[]ä¸­çš„æ•°æ®åº”è¯¥æ˜¯ä¼´éšä¸­è°ƒç”¨SetupOtherInputs()æ¥å˜åŒ–çš„
+//è¦ä¸ç„¶grandparent_index_ä¼šä¸€ç›´++ï¼Œæœ€ç»ˆä¼šå¤§äºgrandparents_.size()ï¼Œè¿™ä¸ªéœ€ä»
+//æ•´ä½“ä¸Šå»çœ‹ï¼Œç„¶åç¡®è®¤ã€‚
 bool Compaction::ShouldStopBefore(const Slice& internal_key) {
   const VersionSet* vset = input_version_->vset_;
   // Scan to find earliest grandparent file that contains key.
@@ -1633,7 +1649,7 @@ bool Compaction::ShouldStopBefore(const Slice& internal_key) {
   }
 }
 
-//½âÒıÓÃµ±Ç°version
+//è§£å¼•ç”¨å½“å‰version
 void Compaction::ReleaseInputs() {
   if (input_version_ != nullptr) {
     input_version_->Unref();
