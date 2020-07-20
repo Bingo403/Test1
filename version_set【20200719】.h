@@ -57,6 +57,9 @@ bool SomeFileOverlapsRange(const InternalKeyComparator& icmp,
                            const Slice* smallest_user_key,
                            const Slice* largest_user_key);
 
+  
+  
+//æ°´ç”µè´¹æ°´ç”µè´¹æ˜¯  
 class Version {
  public:
   // Lookup the value for key.  If found, store it in *val and
@@ -298,25 +301,25 @@ class VersionSet {
   const Options* const options_;
   TableCache* const table_cache_;
   const InternalKeyComparator icmp_;
-  uint64_t next_file_number_; //´Ó2¿ªÊ¼£¬leveldb°Ñ±àºÅ1Áô¸øÁËRecover()¹ı³ÌÖĞµÄManifestÇåµ¥ÎÄ¼ş
+  uint64_t next_file_number_; //ä»2å¼€å§‹ï¼ŒleveldbæŠŠç¼–å·1ç•™ç»™äº†Recover()è¿‡ç¨‹ä¸­çš„Manifestæ¸…å•æ–‡ä»¶
   uint64_t manifest_file_number_;
   uint64_t last_sequence_;
   uint64_t log_number_;
   uint64_t prev_log_number_;  // 0 or backing store for memtable being compacted
 
   // Opened lazily
-  WritableFile* descriptor_file_; //manifest ÎÄ¼ş¾ä±ú
-  log::Writer* descriptor_log_;   //Ğ´manifestµÄÎÄ¼ş·â×°
-  //µÚÒ»¸öVersion
+  WritableFile* descriptor_file_; //manifest æ–‡ä»¶å¥æŸ„
+  log::Writer* descriptor_log_;   //å†™manifestçš„æ–‡ä»¶å°è£…
+  //ç¬¬ä¸€ä¸ªVersion
   Version dummy_versions_;  // Head of circular doubly-linked list of versions.
   Version* current_;        // == dummy_versions_.prev_
 
   // Per-level key at which the next compaction at that level should start.
   // Either an empty string, or a valid InternalKey.
-  //ÎªÁË¾¡Á¿¾ùÔÈcompactÃ¿¸ölevel£¬ËùÒÔ»á½«ÕâÒ»´ÎcompactµÄend-key×÷Îª
-  //ÏÂÒ»´ÎµÄcompactµÄstart-key¡£compactor_pointer_¾Í±£´æÃ¿¸ölevel
-  //ÏÂÒ»´ÎcompactµÄstart-key¡£³ıÁËcurrent_ÒÔÍâµÄVersion²¢²»»á×öcompact£¬
-  //ËùÒÔÕâ¸öÖµ²¢²»±£´æÔÚVersionÖĞ¡£
+  //ä¸ºäº†å°½é‡å‡åŒ€compactæ¯ä¸ªlevelï¼Œæ‰€ä»¥ä¼šå°†è¿™ä¸€æ¬¡compactçš„end-keyä½œä¸º
+  //ä¸‹ä¸€æ¬¡çš„compactçš„start-keyã€‚compactor_pointer_å°±ä¿å­˜æ¯ä¸ªlevel
+  //ä¸‹ä¸€æ¬¡compactçš„start-keyã€‚é™¤äº†current_ä»¥å¤–çš„Versionå¹¶ä¸ä¼šåšcompactï¼Œ
+  //æ‰€ä»¥è¿™ä¸ªå€¼å¹¶ä¸ä¿å­˜åœ¨Versionä¸­ã€‚
   std::string compact_pointer_[config::kNumLevels];
 };
 
@@ -368,26 +371,26 @@ class Compaction {
 
   Compaction(const Options* options, int level);
 
-  int level_; //ÒªcompactµÄlevel
-  uint64_t max_output_file_size_; //Éú³ÉsstableµÄ×î´ósize
-  Version* input_version_;   //compactÊ±µ±Ç°µÄversion
-  VersionEdit edit_;         //¼ÇÂ¼compact¹ı³ÌÖĞµÄ²Ù×÷    
+  int level_; //è¦compactçš„level
+  uint64_t max_output_file_size_; //ç”Ÿæˆsstableçš„æœ€å¤§size
+  Version* input_version_;   //compactæ—¶å½“å‰çš„version
+  VersionEdit edit_;         //è®°å½•compactè¿‡ç¨‹ä¸­çš„æ“ä½œ    
 
   // Each compaction reads inputs from "level_" and "level_+1"
-  //inputs_[0] Îªlevel-nµÄsstableÎÄ¼şĞÅÏ¢¡£
-  //inputs_[1] Îªlevel-n+1µÄsstableÎÄ¼şĞÅÏ¢¡£
+  //inputs_[0] ä¸ºlevel-nçš„sstableæ–‡ä»¶ä¿¡æ¯ã€‚
+  //inputs_[1] ä¸ºlevel-n+1çš„sstableæ–‡ä»¶ä¿¡æ¯ã€‚
   std::vector<FileMetaData*> inputs_[2];  // The two sets of inputs
 
   // State used to check for number of overlapping grandparent files
   // (parent == level_ + 1, grandparent == level_ + 2)
   std::vector<FileMetaData*> grandparents_;
-  //½ÓÏÂÀ´Èı¸ö³ÉÔ±±äÁ¿¶¼Óëgrandparents²ãÓĞ¹Ø£¬
-  //ÓÃÓÚÊÇ·ñÌáÇ°½áÊøcompact¡£
-  //¼ÇÂ¼compactÊ±grandparents_ÖĞÒÑ¾­overlapÎÄ¼ş¸öÊı
+  //æ¥ä¸‹æ¥ä¸‰ä¸ªæˆå‘˜å˜é‡éƒ½ä¸grandparentså±‚æœ‰å…³ï¼Œ
+  //ç”¨äºæ˜¯å¦æå‰ç»“æŸcompactã€‚
+  //è®°å½•compactæ—¶grandparents_ä¸­å·²ç»overlapæ–‡ä»¶ä¸ªæ•°
   size_t grandparent_index_;  // Index in grandparent_starts_
-  //ÊÇ·ñÒÑ¾­½øĞĞ¹ıÓëgrandparent²ãµÄkeyµÄoverlap¼ì²â
+  //æ˜¯å¦å·²ç»è¿›è¡Œè¿‡ä¸grandparentå±‚çš„keyçš„overlapæ£€æµ‹
   bool seen_key_;             // Some output key has been seen
-  //¼ÇÂ¼grandparent²ãoverlapµÄÊı¾İ´óĞ¡
+  //è®°å½•grandparentå±‚overlapçš„æ•°æ®å¤§å°
   int64_t overlapped_bytes_;  // Bytes of overlap between current output
                               // and grandparent files
 
